@@ -36,23 +36,38 @@ public class FetchAndParse {
 	 //			Class Variables			//
 	/////////////////////////////////////
 	
-	private final String smtpServer = "mai.server.com";//customize
-	private final String emailRecipients = "";//customize
-	private final String emailSenderAddress = "";//customize
-	private final String yourUsername = "";//customize
-	private final String yourPassword = "";//customize
-	private final String URL = "";//customize
+	private final String smtpServer = ""; //customize
+	private final String emailRecipients = ""; //customize
+	private final String phoneNumberRecipients = ""; //customize
+	private final String emailSenderAddress = ""; //customize
+	private final String emailSenderFriendlyName = ""; //customize
+	private final String yourUsername = ""; //customize
+	private final String yourPassword = ""; //customize
+	private final String emailSubject = ""; //customize
+	private String nameOfMasterFile = ""; //customize also in DetermineOS() function because of the testing I was doing
 	
+	private String URL = "";
 	private ArrayList<String> arrayOfHtml = new ArrayList<String>();
 	private ArrayList<String> arrayOfLinks = new ArrayList<String>();
+	private ArrayList<String> arrayofPhoneText = new ArrayList<String>();
 	private ArrayList<String> arrayOfMasterLinks = new ArrayList<String>();
-	private String nameOfMasterFile = "";
+	
+	
+	private boolean sendTextMessage = true;
 	
 	  /////////////////////////////////////
 	 //			Constructor(s)			//
 	/////////////////////////////////////
 	
 	public FetchAndParse () {}
+	
+	  /////////////////////////////////
+	 //		Setter Functions		//
+	/////////////////////////////////
+	
+	public void SetSendTextMessages(boolean tempBool) {
+		sendTextMessage = tempBool;
+	}
 	
 	  /////////////////////////////////
 	 //			Main Function		//
@@ -93,10 +108,13 @@ public class FetchAndParse {
 				}
 	            if(i==0) {
 	            	StringToBeSent = StringToBeSent + "<li>" + tempText + " --- " + "<a href=" + tempLink + ">";
+	            	arrayofPhoneText.add(tempText);
+	            	arrayofPhoneText.add(tempLink);
 	            	i++;
 	            }
 	            else {
 	            	StringToBeSent = StringToBeSent + tempText + "</a></li>";
+	            	arrayofPhoneText.add(tempText);
 	            	arrayOfHtml.add(StringToBeSent);
 	            	StringToBeSent = "";
 	            	i=0;
@@ -187,34 +205,71 @@ public class FetchAndParse {
 		properties.put("mail.smtp.auth", "true");
 		properties.put("mail.smtp.socketFactory.class", "javax.net.ssl.SSLSocketFactory");
   
-    	try { 
+    	try {
 	        Session session = Session.getDefaultInstance(properties,
 	        	new javax.mail.Authenticator() {
 	        		protected PasswordAuthentication getPasswordAuthentication() {
 	        			return new PasswordAuthentication(yourUsername, yourPassword);
 	        		}
-	        	}); 
+	        	});
 	  
 		    MimeMessage message = new MimeMessage(session);
-		    message.setFrom(new InternetAddress(emailSenderAddress));
-		    message.addRecipients(Message.RecipientType.TO, InternetAddress.parse(emailRecipients));
-		    message.setSubject("Craigslist Cars!");
+		    message.setFrom(new InternetAddress(emailSenderAddress, emailSenderFriendlyName));
+		    message.addRecipients(Message.RecipientType.BCC, InternetAddress.parse(emailRecipients));
+		    message.setSubject(emailSubject);
 		    
 		    String stringOfHtml = "";
 		    for (String s : arrayOfHtml) {
 		    	stringOfHtml = stringOfHtml + s;
 		    }
 		    
-		    message.setContent(stringOfHtml,"text/html"); 
+		    message.setContent(stringOfHtml,"text/html");
 		  
 		    Transport.send(message);
+		    
+		    //phone string consists of:
+		    // 0 - price
+		    // 1 - description
+		    //repeat
+		    if(!phoneNumberRecipients.isEmpty() && sendTextMessage) {
+		    	MimeMessage phoneMessage = new MimeMessage(session);
+		    	phoneMessage.setFrom(new InternetAddress(emailSenderAddress, emailSenderFriendlyName));
+		    	phoneMessage.addRecipients(Message.RecipientType.BCC, InternetAddress.parse(phoneNumberRecipients));
+		    	phoneMessage.setSubject(emailSubject);
+		    	String stringOfPlainText = "";
+		    	int i = 0;
+		    	String linkString = null;
+		    	
+		    	for (String s : arrayofPhoneText) {
+		    		if(i == 0) {
+		    			stringOfPlainText = stringOfPlainText + s + " -- ";
+		    		}
+		    		
+		    		if(i == 1) {
+		    			linkString = s;
+		    		}
+		    		
+		    		if(i == 2) {
+		    			stringOfPlainText = stringOfPlainText + s + " -- " + linkString + "\n" + "\n";
+		    			i=0;
+		    		}
+		    		else {
+		    			i++;
+		    		}
+			    }
+		    	
+		    	phoneMessage.setContent(stringOfPlainText,"text/html");
+			    Transport.send(phoneMessage);
+		    }
 		    
 		    DateTimeFormatter dtf = DateTimeFormatter.ofPattern("yyyy/MM/dd HH:mm:ss");
 			LocalDateTime now = LocalDateTime.now();
 			System.out.println(dtf.format(now) + " - Email Sent.");
 		} 
-    	catch (MessagingException e) { 
+    	catch (MessagingException e) {
 		    e.printStackTrace(); 
+		} catch (UnsupportedEncodingException e) {
+			e.printStackTrace();
 		}
 	}
 }
